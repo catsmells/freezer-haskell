@@ -24,6 +24,7 @@ handleCommand msg = do
         Just ("!hello", _) -> sendMessage (messageChannel msg) "Hello!"
         Just ("!rename", args) -> handleRenameCommand (messageChannel msg) args
         Just ("!createchannel", args) -> handleCreateChannelCommand (messageGuild msg) args
+        Just ("!grantrole", args) -> handleGrantRoleCommand (messageGuild msg) (messageChannel msg) args
         _ -> pure ()
 
 -- Function to handle rename command
@@ -44,12 +45,38 @@ handleCreateChannelCommand guildId args = do
             sendMessage channel $ "Channel created: " <> channelName
         _ -> sendMessage channel "Invalid arguments. Usage: !createchannel <channel_name>"
 
+-- Function to handle grant role command
+handleGrantRoleCommand :: GuildId -> ChannelId -> [T.Text] -> DiscordHandler ()
+handleGrantRoleCommand guildId channel args = do
+    case args of
+        [mentionedUser] -> do
+            users <- restCall $ GetGuildMembers guildId (GuildMembersTiming 1 1000)
+            case findUserByName users mentionedUser of
+                Just user -> do
+                    role <- findOrCreateRole guildId "lq"
+                    _ <- restCall $ AddGuildMemberRole guildId (userId user) role
+                    sendMessage channel $ "Role 'lq' granted to user: " <> userUsername user
+                Nothing -> sendMessage channel "User not found."
+        _ -> sendMessage channel "Invalid arguments. Usage: !grantrole <user_mention>"
+
 -- Function to parse commands
 parseCommand :: T.Text -> Maybe (T.Text, [T.Text])
 parseCommand msgContent =
     case T.words msgContent of
         (cmd:args) | T.head cmd == '!' -> Just (cmd, args)
         _ -> Nothing
+
+-- Find user by name
+findUserByName :: [GuildMember] -> T.Text -> Maybe GuildMember
+findUserByName users name = find (\user -> userUsername (userUser user) == name) users
+
+-- Find or create role by name
+findOrCreateRole :: GuildId -> T.Text -> DiscordHandler Role
+findOrCreateRole guildId roleName = do
+    roles <- restCall $ GetGuildRoles guildId
+    case find (\role -> roleName == role_name role) roles of
+        Just role -> pure role
+        Nothing -> restCall (CreateGuildRole guildId roleName)
 
 -- Function to run the bot
 runBot :: IO ()
