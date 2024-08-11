@@ -81,7 +81,7 @@ findOrCreateRole guildId roleName = do
 -- Function to run the bot
 runBot :: IO ()
 runBot = do
-    token <- T.pack <$> readFile "token.txt" -- Replace "token.txt" with the file containing your bot token
+    token <- T.pack <$> readFile "token.txt" -- Replace "token.txt" with the file containing the bot token
     _ <- runDiscord $ def { discordToken = token
                            , discordOnEvent = eventHandler
                            }
